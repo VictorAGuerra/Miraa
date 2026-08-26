@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: miraa
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: NODE_VERSION
+        value: 20
+    disk:
+      name: miraa-data
+      mountPath: /var/data
+      sizeGB: 1

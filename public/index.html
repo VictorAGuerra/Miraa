@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Miraa</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="center-screen">
+    <div class="card auth-card">
+      <div class="brand">
+        <span class="dot"></span>
+        <h1>Miraa</h1>
+      </div>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="login-username">Usuário</label>
+          <input type="text" id="login-username" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="login-password">Senha</label>
+          <input type="password" id="login-password" autocomplete="current-password" required />
+        </div>
+        <div class="form-actions">
+          <button type="submit">Entrar</button>
+          <button type="button" class="link-btn" id="show-register">Não tem conta? Cadastre-se</button>
+        </div>
+        <div class="error-msg" id="login-error"></div>
+      </form>
+
+      <form id="register-form" class="hidden">
+        <div class="field">
+          <label for="reg-username">Usuário</label>
+          <input type="text" id="reg-username" autocomplete="username" minlength="3" maxlength="20" required />
+        </div>
+        <div class="field">
+          <label for="reg-password">Senha</label>
+          <input type="password" id="reg-password" autocomplete="new-password" minlength="6" required />
+        </div>
+        <div class="form-actions">
+          <button type="submit">Criar conta</button>
+          <button type="button" class="link-btn" id="show-login">Já tem conta? Entrar</button>
+        </div>
+        <div class="error-msg" id="register-error"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth-page.js"></script>
+</body>
+</html>

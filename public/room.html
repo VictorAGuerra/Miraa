@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Miraa · Sala</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="room-topbar">
+    <div class="brand" style="margin-bottom:0;">
+      <span class="dot"></span>
+      <h1 id="room-name">Sala</h1>
+    </div>
+    <button class="secondary" id="leave-room-btn">Voltar ao painel</button>
+  </div>
+
+  <div class="controls">
+    <button id="toggle-camera">📷 Câmera</button>
+    <button id="toggle-mic">🎙️ Microfone</button>
+    <button id="toggle-screen">🖥️ Compartilhar tela</button>
+    <label class="checkbox">
+      <input type="checkbox" id="screen-audio-checkbox" checked />
+      incluir áudio do computador
+    </label>
+  </div>
+
+  <div class="status-line" id="status-line">Conectando...</div>
+
+  <div class="video-grid" id="video-grid"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/room.js"></script>
+</body>
+</html>
