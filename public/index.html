@@ -44,7 +44,17 @@
         </div>
         <div class="field">
           <label for="reg-password">Senha</label>
-          <input type="password" id="reg-password" autocomplete="new-password" minlength="6" required />
+          <input type="password" id="reg-password" autocomplete="new-password" minlength="8" required />
+          <ul class="pw-requirements" id="pw-requirements">
+            <li data-rule="length">Pelo menos 8 caracteres</li>
+            <li data-rule="upper">Uma letra maiúscula</li>
+            <li data-rule="number">Um número</li>
+            <li data-rule="special">Um caractere especial (ex: ! @ # $)</li>
+          </ul>
+        </div>
+        <div class="field">
+          <label for="reg-password-confirm">Confirmar senha</label>
+          <input type="password" id="reg-password-confirm" autocomplete="new-password" minlength="8" required />
         </div>
         <div class="form-actions">
           <button type="submit">Criar conta</button>

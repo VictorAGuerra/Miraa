@@ -148,6 +148,35 @@ input:focus {
 .field { margin-bottom: 1rem; }
 .field label { display: block; margin-bottom: 0.35rem; font-size: 0.85rem; color: var(--text-dim); }
 
+.pw-requirements {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.pw-requirements li {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: color 0.15s ease;
+}
+.pw-requirements li::before {
+  content: "○";
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.pw-requirements li.met {
+  color: var(--success);
+}
+.pw-requirements li.met::before {
+  content: "●";
+  color: var(--success);
+}
+
 .form-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.2rem; }
 
 .error-msg { color: var(--danger); font-size: 0.85rem; min-height: 1.2em; margin-top: 0.5rem; }

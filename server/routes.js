@@ -5,6 +5,16 @@ const auth = require('./auth');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
+function passwordRequirementErrors(password) {
+  if (typeof password !== 'string') return ['a senha é obrigatória'];
+  const missing = [];
+  if (password.length < 8) missing.push('pelo menos 8 caracteres');
+  if (!/[A-Z]/.test(password)) missing.push('uma letra maiúscula');
+  if (!/[0-9]/.test(password)) missing.push('um número');
+  if (!/[^A-Za-z0-9]/.test(password)) missing.push('um caractere especial');
+  return missing;
+}
+
 function router() {
   const r = express.Router();
 
@@ -15,8 +25,9 @@ function router() {
     if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
       return res.status(400).json({ error: 'Usuário deve ter 3-20 caracteres (letras, números, _).' });
     }
-    if (typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
+    const missingRules = passwordRequirementErrors(password);
+    if (missingRules.length) {
+      return res.status(400).json({ error: `A senha precisa ter: ${missingRules.join(', ')}.` });
     }
     if (store.findUserByUsername(username)) {
       return res.status(409).json({ error: 'Esse nome de usuário já está em uso.' });
