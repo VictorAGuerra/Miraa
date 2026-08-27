@@ -33,7 +33,7 @@ const registerLimiter = rateLimit({
   limit: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Muitas contas criadas curto intervalo de tempo. Tente novamente mais tarde.' },
+  message: { error: 'Muitas contas criadas em curto intervalo de tempo. Tente novamente mais tarde.' },
 });
 
 function passwordRequirementErrors(password) {

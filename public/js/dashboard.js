@@ -264,10 +264,19 @@ document.getElementById('open-create-room').addEventListener('click', async () =
   picker.innerHTML = friends.length
     ? ''
     : '<span class="muted" style="font-size:0.85rem;">Adicione amigos para convidá-los.</span>';
+  const CHECK_ICON = `<svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
   for (const f of friends) {
-    const label = document.createElement('label');
-    label.innerHTML = `<input type="checkbox" value="${f.id}" /> ${avatarHtml(f, 'avatar-sm')} ${escapeHtml(displayNameOf(f))}`;
-    picker.appendChild(label);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'friend-pick';
+    btn.dataset.id = f.id;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.innerHTML = `${avatarHtml(f, 'avatar-sm')} <span>${escapeHtml(displayNameOf(f))}</span> ${CHECK_ICON}`;
+    btn.addEventListener('click', () => {
+      const selected = btn.classList.toggle('selected');
+      btn.setAttribute('aria-pressed', String(selected));
+    });
+    picker.appendChild(btn);
   }
   modal.classList.remove('hidden');
 });
@@ -278,7 +287,7 @@ document.getElementById('confirm-create-room').addEventListener('click', async (
   const name = document.getElementById('room-name-input').value.trim();
   const errorEl = document.getElementById('create-room-error');
   if (!name) { errorEl.textContent = 'Dê um nome à sala.'; return; }
-  const memberIds = Array.from(document.querySelectorAll('#room-friend-picker input:checked')).map((c) => c.value);
+  const memberIds = Array.from(document.querySelectorAll('#room-friend-picker .friend-pick.selected')).map((el) => el.dataset.id);
   try {
     const { room } = await api('/rooms', { method: 'POST', body: { name, memberIds } });
     modal.classList.add('hidden');
