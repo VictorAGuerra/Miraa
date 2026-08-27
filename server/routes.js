@@ -1,9 +1,21 @@
 const express = require('express');
+const { rateLimit } = require('express-rate-limit');
 const store = require('./store');
 const auth = require('./auth');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+
+// Limite grosseiro contra criação em massa de contas a partir do mesmo IP.
+// Não impede alguém decidido (VPN, trocar de rede, etc.), só freia abuso
+// casual/automatizado.
+const registerLimiter = rateLimit({
+  windowMs: 6 * 60 * 60 * 1000, // 6 horas
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas contas criadas a partir deste endereço em pouco tempo. Tente novamente mais tarde.' },
+});
 
 function passwordRequirementErrors(password) {
   if (typeof password !== 'string') return ['a senha é obrigatória'];
@@ -20,7 +32,7 @@ function router() {
 
   // ---------- Autenticação ----------
 
-  r.post('/register', (req, res) => {
+  r.post('/register', registerLimiter, (req, res) => {
     const { username, password } = req.body || {};
     if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
       return res.status(400).json({ error: 'Usuário deve ter 3-20 caracteres (letras, números, _).' });
