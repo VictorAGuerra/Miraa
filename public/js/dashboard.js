@@ -1,13 +1,23 @@
-const me = Session.requireOrRedirect();
+let me = Session.requireOrRedirect();
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
-
-document.getElementById('username-label').textContent = me.username;
 document.getElementById('uuid-text').textContent = me.id;
+
+function renderSelfTrigger() {
+  document.getElementById('self-avatar').innerHTML = avatarHtml(me, 'avatar-sm');
+  document.getElementById('username-label').textContent = displayNameOf(me);
+}
+renderSelfTrigger();
+
+// Sessão pode ter sido salva antes de apelido/avatar existirem, ou estar
+// desatualizada — busca o perfil atual assim que a página carrega.
+(async () => {
+  try {
+    const { user } = await api('/me');
+    me = user;
+    Session.save(Session.token, me);
+    renderSelfTrigger();
+  } catch { /* mantém o que já tinha em cache */ }
+})();
 
 document.getElementById('copy-uuid').addEventListener('click', async () => {
   await navigator.clipboard.writeText(me.id);
@@ -28,7 +38,83 @@ function toast(msg) {
   setTimeout(() => el.remove(), 2500);
 }
 
+// ---------- Perfil ----------
+
+const profileModal = document.getElementById('profile-modal');
+let selectedAvatarFile = null;
+
+document.getElementById('open-profile').addEventListener('click', () => {
+  selectedAvatarFile = null;
+  document.getElementById('profile-displayname-input').value = me.displayName || '';
+  document.getElementById('profile-avatar-preview').innerHTML = avatarHtml(me, 'avatar-lg');
+  document.getElementById('profile-error').textContent = '';
+  profileModal.classList.remove('hidden');
+});
+
+document.getElementById('cancel-profile-btn').addEventListener('click', () => profileModal.classList.add('hidden'));
+
+document.getElementById('profile-avatar-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedAvatarFile = file;
+  const preview = document.getElementById('profile-avatar-preview');
+  const reader = new FileReader();
+  reader.onload = () => {
+    preview.innerHTML = `<img class="avatar avatar-lg" src="${reader.result}" alt="" />`;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('remove-avatar-btn').addEventListener('click', async () => {
+  try {
+    const { user } = await api('/profile/avatar', { method: 'DELETE' });
+    me = user;
+    Session.save(Session.token, me);
+    selectedAvatarFile = null;
+    document.getElementById('profile-avatar-input').value = '';
+    document.getElementById('profile-avatar-preview').innerHTML = avatarHtml(me, 'avatar-lg');
+    renderSelfTrigger();
+    toast('Foto removida.');
+  } catch (err) {
+    document.getElementById('profile-error').textContent = err.message;
+  }
+});
+
+document.getElementById('save-profile-btn').addEventListener('click', async () => {
+  const errorEl = document.getElementById('profile-error');
+  errorEl.textContent = '';
+  const displayName = document.getElementById('profile-displayname-input').value.trim();
+
+  try {
+    if (selectedAvatarFile) {
+      const formData = new FormData();
+      formData.append('avatar', selectedAvatarFile);
+      const { user } = await apiUpload('/profile/avatar', formData);
+      me = user;
+    }
+    const { user } = await api('/profile', { method: 'PATCH', body: { displayName: displayName || null } });
+    me = user;
+    Session.save(Session.token, me);
+    renderSelfTrigger();
+    profileModal.classList.add('hidden');
+    await refreshAll();
+  } catch (err) {
+    errorEl.textContent = err.message;
+  }
+});
+
 // ---------- Amigos ----------
+
+function friendRowInfo(user) {
+  return `
+    <div class="identity">
+      ${avatarHtml(user, 'avatar-md')}
+      <div class="info">
+        <strong>${escapeHtml(displayNameOf(user))}</strong>
+        <span>@${escapeHtml(user.username)}</span>
+      </div>
+    </div>`;
+}
 
 async function loadFriends() {
   const { friends } = await api('/friends');
@@ -42,10 +128,7 @@ async function loadFriends() {
     const item = document.createElement('div');
     item.className = 'list-item';
     item.innerHTML = `
-      <div class="info">
-        <strong>${escapeHtml(f.username)}</strong>
-        <span>${f.id}</span>
-      </div>
+      ${friendRowInfo(f)}
       <div class="actions">
         <button class="danger" data-remove="${f.id}">Remover</button>
       </div>`;
@@ -70,7 +153,7 @@ async function loadRequests() {
     const item = document.createElement('div');
     item.className = 'list-item';
     item.innerHTML = `
-      <div class="info"><strong>${escapeHtml(r.user.username)}</strong><span>${r.user.id}</span></div>
+      ${friendRowInfo(r.user)}
       <div class="actions">
         <button data-accept="${r.id}">Aceitar</button>
         <button class="secondary" data-reject="${r.id}">Recusar</button>
@@ -98,7 +181,7 @@ async function loadRequests() {
     const item = document.createElement('div');
     item.className = 'list-item';
     item.innerHTML = `
-      <div class="info"><strong>${escapeHtml(r.user.username)}</strong><span>${r.user.id}</span></div>
+      ${friendRowInfo(r.user)}
       <div class="actions"><span class="muted">Aguardando...</span></div>`;
     outgoingList.appendChild(item);
   }
@@ -183,7 +266,7 @@ document.getElementById('open-create-room').addEventListener('click', async () =
     : '<span class="muted" style="font-size:0.85rem;">Adicione amigos para convidá-los.</span>';
   for (const f of friends) {
     const label = document.createElement('label');
-    label.innerHTML = `<input type="checkbox" value="${f.id}" /> ${escapeHtml(f.username)}`;
+    label.innerHTML = `<input type="checkbox" value="${f.id}" /> ${avatarHtml(f, 'avatar-sm')} ${escapeHtml(displayNameOf(f))}`;
     picker.appendChild(label);
   }
   modal.classList.remove('hidden');
@@ -212,8 +295,8 @@ async function refreshAll() {
 refreshAll();
 
 // Atualiza a tela em tempo real (sem F5) quando algo muda: pedido de
-// amizade recebido/aceito, convite pra sala, etc. O servidor só avisa "algo
-// mudou" — a gente reage re-buscando a lista correspondente.
+// amizade recebido/aceito, convite pra sala, apelido/foto de um amigo, etc.
+// O servidor só avisa "algo mudou" — a gente reage re-buscando a lista.
 const socket = io({ auth: { token: Session.token } });
 socket.on('friends:updated', () => {
   loadFriends();

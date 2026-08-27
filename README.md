@@ -20,6 +20,11 @@ microfone via WebRTC.
     marque "compartilhar áudio da guia/tela" no diálogo do sistema).
 - Suporta várias pessoas na mesma sala (malha WebRTC ponto a ponto, com o
   padrão *perfect negotiation* para evitar conflitos de sinalização).
+- Perfil com **apelido** e **foto**, usados em toda a interface (lista de
+  amigos, pedidos, e um roster dentro da sala mostrando quem está presente
+  mesmo sem compartilhar câmera/tela).
+- Painel e sala atualizam **em tempo real** (pedido de amizade, convite de
+  sala, mudança de perfil de um amigo) sem precisar dar F5.
 
 ## Como rodar
 
@@ -70,7 +75,10 @@ nova versão automaticamente.
 ## Notas técnicas
 
 - Sem banco de dados externo: os dados (usuários, amizades, salas) ficam em
-  `data/db.json`, criado automaticamente.
+  `data/db.json`, criado automaticamente. Fotos de perfil ficam em
+  `data/avatars/`. Ambos usam `DATA_DIR` — no Render, aponte para o disco
+  persistente (já configurado no `render.yaml`) ou as fotos somem a cada
+  deploy.
 - Sessões de login são tokens em memória — reiniciar o servidor faz todo
   mundo precisar logar de novo (as contas continuam existindo).
 - A sinalização WebRTC usa Socket.IO; a conexão de mídia é P2P direta entre

@@ -249,6 +249,7 @@ input:focus {
 }
 .list-item:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(139, 92, 246, 0.35); }
 .list-item .info { display: flex; flex-direction: column; min-width: 0; }
+.identity { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
 .list-item .info strong { font-size: 0.95rem; }
 .list-item .info span { font-size: 0.75rem; color: var(--text-dim); font-family: monospace; overflow: hidden; text-overflow: ellipsis; }
 .list-item .actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
@@ -366,3 +367,78 @@ input:focus {
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   z-index: 50;
 }
+
+/* ---------- Avatares ---------- */
+
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-gradient);
+  color: white;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid var(--card-border);
+}
+.avatar-sm { width: 28px; height: 28px; font-size: 0.75rem; }
+.avatar-md { width: 40px; height: 40px; font-size: 1rem; }
+.avatar-lg { width: 88px; height: 88px; font-size: 2rem; }
+
+.avatar-btn {
+  background: none;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: none;
+  line-height: 0;
+}
+.avatar-btn:hover { filter: brightness(1.15); transform: none; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.35); }
+
+.self-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.2rem 0.4rem;
+  border-radius: 999px;
+  color: var(--text);
+  box-shadow: none;
+}
+.self-trigger:hover { background: rgba(255, 255, 255, 0.06); transform: none; box-shadow: none; }
+
+/* ---------- Perfil (modal) ---------- */
+
+.profile-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+.profile-avatar-actions { display: flex; flex-direction: column; gap: 0.4rem; }
+.profile-avatar-actions button { font-size: 0.82rem; padding: 0.45em 0.9em; }
+
+/* ---------- Roster da sala ---------- */
+
+.roster {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.roster-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem 0.3rem 0.3rem;
+  font-size: 0.82rem;
+}
+.roster-pill .you-tag { color: var(--text-dim); font-size: 0.72rem; }

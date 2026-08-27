@@ -12,7 +12,8 @@ const DATA_FILE = path.join(DATA_DIR, 'db.json');
 
 function emptyState() {
   return {
-    users: {}, // id (uuid) -> { id, username, usernameLower, passwordHash, createdAt }
+    users: {}, // id (uuid) -> { id, username, usernameLower, passwordHash, createdAt,
+               //                displayName, hasAvatar, avatarVersion, avatarMimeType }
     friendRequests: {}, // id -> { id, from, to, status, createdAt }
     friends: {}, // userId -> [friendId, ...]
     rooms: {}, // id (uuid) -> { id, name, ownerId, memberIds: [...], createdAt }
@@ -42,4 +43,4 @@ function persist() {
   }
 }
 
-module.exports = { state, persist };
+module.exports = { state, persist, DATA_DIR };

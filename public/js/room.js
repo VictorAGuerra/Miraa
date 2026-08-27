@@ -9,8 +9,41 @@ if (!roomId) window.location.href = '/dashboard.html';
 
 const statusLine = document.getElementById('status-line');
 const videoGrid = document.getElementById('video-grid');
+const rosterEl = document.getElementById('roster');
 
 function setStatus(msg) { statusLine.textContent = msg; }
+
+// userId -> objeto público do membro (com displayName/avatarUrl), buscado
+// uma vez ao entrar. Se alguém trocar apelido/foto no meio da chamada, quem
+// já está na sala só vê a mudança se reentrar — limitação aceitável aqui.
+let roomMembersById = new Map();
+
+function identityFor(userId, fallbackUsername) {
+  return roomMembersById.get(userId) || { id: userId, username: fallbackUsername || 'Participante', displayName: null, avatarUrl: null };
+}
+
+function getIdentityBySocket(socketId) {
+  const info = peerInfoBySocket.get(socketId);
+  return info ? identityFor(info.userId, info.username) : null;
+}
+
+// "Quem está na chamada agora" — inclui todo mundo presente, mesmo quem não
+// está compartilhando nada (câmera/tela/mic desligados).
+const rosterMap = new Map(); // socketId ('self' para você) -> { userId, username }
+
+function renderRoster() {
+  rosterEl.innerHTML = '';
+  for (const [socketId, info] of rosterMap.entries()) {
+    const identity = identityFor(info.userId, info.username);
+    const pill = document.createElement('div');
+    pill.className = 'roster-pill';
+    pill.innerHTML = `
+      ${avatarHtml(identity, 'avatar-sm')}
+      <span>${escapeHtml(displayNameOf(identity))}</span>
+      ${socketId === 'self' ? '<span class="you-tag">você</span>' : ''}`;
+    rosterEl.appendChild(pill);
+  }
+}
 
 // kind -> MediaStream | null
 const localStreams = { camera: null, mic: null, screen: null };
@@ -30,9 +63,10 @@ const tiles = new Map();
 
 function tileKey(socketId, streamId) { return `${socketId}:${streamId}`; }
 
-function ensureRemoteTile(socketId, stream, username) {
+function ensureRemoteTile(socketId, stream) {
   const key = tileKey(socketId, stream.id);
   if (tiles.has(key)) return tiles.get(key);
+  const identity = getIdentityBySocket(socketId);
   const tile = document.createElement('div');
   tile.className = 'tile';
   const video = document.createElement('video');
@@ -43,7 +77,7 @@ function ensureRemoteTile(socketId, stream, username) {
   badge.textContent = '...';
   const label = document.createElement('span');
   label.className = 'label';
-  label.textContent = username || 'Participante';
+  label.textContent = identity ? displayNameOf(identity) : 'Participante';
   tile.append(video, badge, label);
   videoGrid.appendChild(tile);
   const record = { tile, video, badge, label };
@@ -74,7 +108,8 @@ function applyMetaToTile(socketId, streamId) {
   const record = tiles.get(tileKey(socketId, streamId));
   if (record && meta) {
     record.badge.textContent = KIND_LABELS[meta.kind] || meta.kind;
-    record.label.textContent = meta.username || peerInfoBySocket.get(socketId)?.username || 'Participante';
+    const identity = getIdentityBySocket(socketId);
+    record.label.textContent = identity ? displayNameOf(identity) : (meta.username || 'Participante');
   }
 }
 
@@ -113,7 +148,7 @@ function updateButtonState(kind, active) {
 
 // ---------- WebRTC ----------
 
-function createPeerConnection(socketId, remoteUserId, remoteUsername) {
+function createPeerConnection(socketId, remoteUserId) {
   if (peerConnections.has(socketId)) return peerConnections.get(socketId);
 
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -124,7 +159,6 @@ function createPeerConnection(socketId, remoteUserId, remoteUsername) {
     makingOffer: false,
     ignoreOffer: false,
     senders: { camera: [], mic: [], screen: [] },
-    remoteUsername,
   };
   peerConnections.set(socketId, entry);
 
@@ -146,8 +180,7 @@ function createPeerConnection(socketId, remoteUserId, remoteUsername) {
 
   pc.ontrack = (event) => {
     const stream = event.streams[0] || new MediaStream([event.track]);
-    const username = entry.remoteUsername || peerInfoBySocket.get(socketId)?.username;
-    const record = ensureRemoteTile(socketId, stream, username);
+    const record = ensureRemoteTile(socketId, stream);
     if (record.video.srcObject !== stream) record.video.srcObject = stream;
     applyMetaToTile(socketId, stream.id);
     stream.addEventListener('removetrack', () => {
@@ -265,24 +298,31 @@ socket.on('connect', () => {
       return;
     }
     setStatus(`Conectado. ${ack.peers.length} outro(s) participante(s) na sala.`);
+    rosterMap.set('self', { userId: me.id, username: me.username });
     for (const p of ack.peers) {
       peerInfoBySocket.set(p.socketId, { userId: p.userId, username: p.username });
-      createPeerConnection(p.socketId, p.userId, p.username);
+      rosterMap.set(p.socketId, { userId: p.userId, username: p.username });
+      createPeerConnection(p.socketId, p.userId);
     }
+    renderRoster();
   });
 });
 
 socket.on('room:peer-joined', (p) => {
   peerInfoBySocket.set(p.socketId, { userId: p.userId, username: p.username });
-  createPeerConnection(p.socketId, p.userId, p.username);
-  setStatus(`${p.username} entrou na sala.`);
+  rosterMap.set(p.socketId, { userId: p.userId, username: p.username });
+  createPeerConnection(p.socketId, p.userId);
+  renderRoster();
+  setStatus(`${displayNameOf(identityFor(p.userId, p.username))} entrou na sala.`);
 });
 
 socket.on('room:peer-left', ({ socketId }) => {
   const info = peerInfoBySocket.get(socketId);
   closePeerConnection(socketId);
   peerInfoBySocket.delete(socketId);
-  if (info) setStatus(`${info.username} saiu da sala.`);
+  rosterMap.delete(socketId);
+  renderRoster();
+  if (info) setStatus(`${displayNameOf(identityFor(info.userId, info.username))} saiu da sala.`);
 });
 
 socket.on('stream:meta', ({ socketId, kind, streamId, active, username }) => {
@@ -302,7 +342,7 @@ socket.on('signal', async ({ from, data }) => {
   let entry = peerConnections.get(from);
   if (!entry) {
     const info = peerInfoBySocket.get(from);
-    entry = createPeerConnection(from, info?.userId, info?.username);
+    entry = createPeerConnection(from, info?.userId);
   }
   const { pc } = entry;
   try {
@@ -335,6 +375,8 @@ socket.on('signal', async ({ from, data }) => {
   try {
     const { room } = await api(`/rooms/${roomId}`);
     document.getElementById('room-name').textContent = room.name;
+    roomMembersById = new Map(room.members.map((m) => [m.id, m]));
+    renderRoster();
   } catch (err) {
     alert('Não foi possível acessar esta sala: ' + err.message);
     window.location.href = '/dashboard.html';

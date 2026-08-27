@@ -19,7 +19,10 @@
       <span class="brand-name">Miraa</span>
     </div>
     <div style="display:flex; align-items:center; gap:0.8rem;">
-      <span class="muted" id="username-label"></span>
+      <button class="self-trigger" id="open-profile" title="Editar perfil">
+        <span id="self-avatar"></span>
+        <span class="muted" id="username-label"></span>
+      </button>
       <span class="uuid-chip" id="uuid-chip" title="Seu UUID — compartilhe com amigos">
         <span id="uuid-text">carregando...</span>
         <button class="icon secondary" id="copy-uuid" title="Copiar UUID">⧉</button>
@@ -73,6 +76,31 @@
       <div class="form-actions">
         <button id="confirm-create-room">Criar sala</button>
         <button class="secondary" id="cancel-create-room">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="profile-modal">
+    <div class="card modal">
+      <div class="section-title"><h2>Meu perfil</h2></div>
+      <div class="profile-avatar-row">
+        <span id="profile-avatar-preview"></span>
+        <div class="profile-avatar-actions">
+          <label class="link-btn" style="cursor:pointer;">
+            Trocar foto
+            <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/webp" class="hidden" />
+          </label>
+          <button type="button" class="secondary" id="remove-avatar-btn">Remover foto</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="profile-displayname-input">Apelido</label>
+        <input type="text" id="profile-displayname-input" maxlength="30" placeholder="Como seus amigos vão te ver" />
+      </div>
+      <div class="error-msg" id="profile-error"></div>
+      <div class="form-actions">
+        <button id="save-profile-btn">Salvar</button>
+        <button class="secondary" id="cancel-profile-btn">Cancelar</button>
       </div>
     </div>
   </div>

@@ -4,7 +4,13 @@ const { state, persist } = require('./db');
 
 function publicUser(user) {
   if (!user) return null;
-  return { id: user.id, username: user.username, createdAt: user.createdAt };
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName || null,
+    avatarUrl: user.hasAvatar ? `/api/avatars/${user.id}?v=${user.avatarVersion}` : null,
+    createdAt: user.createdAt,
+  };
 }
 
 // ---------- Usuários ----------
@@ -26,6 +32,10 @@ function createUser(username, password) {
     usernameLower: username.trim().toLowerCase(),
     passwordHash: bcrypt.hashSync(password, 10),
     createdAt: Date.now(),
+    displayName: null,
+    hasAvatar: false,
+    avatarVersion: 0,
+    avatarMimeType: null,
   };
   state.users[id] = user;
   state.friends[id] = [];
@@ -37,6 +47,33 @@ function verifyPassword(user, password) {
   return bcrypt.compareSync(password, user.passwordHash);
 }
 
+function updateDisplayName(userId, displayName) {
+  const user = findUserById(userId);
+  if (!user) throw new Error('Usuário não encontrado.');
+  user.displayName = displayName ? displayName.trim() : null;
+  persist();
+  return user;
+}
+
+function setAvatar(userId, mimeType) {
+  const user = findUserById(userId);
+  if (!user) throw new Error('Usuário não encontrado.');
+  user.hasAvatar = true;
+  user.avatarMimeType = mimeType;
+  user.avatarVersion += 1;
+  persist();
+  return user;
+}
+
+function clearAvatar(userId) {
+  const user = findUserById(userId);
+  if (!user) throw new Error('Usuário não encontrado.');
+  user.hasAvatar = false;
+  user.avatarMimeType = null;
+  persist();
+  return user;
+}
+
 // ---------- Amigos ----------
 
 function areFriends(aId, bId) {
@@ -45,6 +82,10 @@ function areFriends(aId, bId) {
 
 function listFriends(userId) {
   return (state.friends[userId] || []).map((id) => publicUser(findUserById(id))).filter(Boolean);
+}
+
+function friendIds(userId) {
+  return state.friends[userId] || [];
 }
 
 function findPendingRequestBetween(aId, bId) {
@@ -193,8 +234,12 @@ module.exports = {
   findUserById,
   createUser,
   verifyPassword,
+  updateDisplayName,
+  setAvatar,
+  clearAvatar,
   areFriends,
   listFriends,
+  friendIds,
   sendFriendRequest,
   listRequests,
   acceptRequest,

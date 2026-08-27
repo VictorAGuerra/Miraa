@@ -1,10 +1,29 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
+const multer = require('multer');
 const { rateLimit } = require('express-rate-limit');
 const store = require('./store');
 const auth = require('./auth');
+const { DATA_DIR } = require('./db');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+
+const AVATAR_DIR = path.join(DATA_DIR, 'avatars');
+const ALLOWED_AVATAR_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const avatarFilePath = (userId) => path.join(AVATAR_DIR, userId);
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_AVATAR_TYPES.has(file.mimetype)) {
+      return cb(new Error('Formato não suportado (use PNG, JPEG ou WEBP).'));
+    }
+    cb(null, true);
+  },
+});
 
 // Limite grosseiro contra criação em massa de contas a partir do mesmo IP.
 // Não impede alguém decidido (VPN, trocar de rede, etc.), só freia abuso
@@ -73,6 +92,59 @@ function router(io) {
 
   r.get('/me', auth.requireAuth, (req, res) => {
     res.json({ user: store.publicUser(store.findUserById(req.userId)) });
+  });
+
+  // ---------- Perfil ----------
+
+  r.patch('/profile', auth.requireAuth, (req, res) => {
+    const { displayName } = req.body || {};
+    if (displayName !== undefined && displayName !== null) {
+      if (typeof displayName !== 'string' || displayName.trim().length > 30) {
+        return res.status(400).json({ error: 'Apelido deve ter no máximo 30 caracteres.' });
+      }
+    }
+    const user = store.updateDisplayName(req.userId, displayName);
+    notify([req.userId, ...store.friendIds(req.userId)], 'friends:updated');
+    res.json({ user: store.publicUser(user) });
+  });
+
+  r.post('/profile/avatar', auth.requireAuth, (req, res) => {
+    avatarUpload.single('avatar')(req, res, (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE'
+          ? 'Imagem muito grande (máximo 3MB).'
+          : err.message || 'Falha ao enviar imagem.';
+        return res.status(400).json({ error: message });
+      }
+      if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada.' });
+      try {
+        fs.mkdirSync(AVATAR_DIR, { recursive: true });
+        fs.writeFileSync(avatarFilePath(req.userId), req.file.buffer);
+        const user = store.setAvatar(req.userId, req.file.mimetype);
+        notify([req.userId, ...store.friendIds(req.userId)], 'friends:updated');
+        res.json({ user: store.publicUser(user) });
+      } catch {
+        res.status(500).json({ error: 'Falha ao salvar imagem.' });
+      }
+    });
+  });
+
+  r.delete('/profile/avatar', auth.requireAuth, (req, res) => {
+    try { fs.unlinkSync(avatarFilePath(req.userId)); } catch { /* já não existia */ }
+    const user = store.clearAvatar(req.userId);
+    notify([req.userId, ...store.friendIds(req.userId)], 'friends:updated');
+    res.json({ user: store.publicUser(user) });
+  });
+
+  r.get('/avatars/:userId', (req, res) => {
+    const user = store.findUserById(req.params.userId);
+    if (!user || !user.hasAvatar) return res.status(404).end();
+    fs.readFile(avatarFilePath(req.params.userId), (err, data) => {
+      if (err) return res.status(404).end();
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      res.type(user.avatarMimeType || 'image/jpeg');
+      res.send(data);
+    });
   });
 
   // ---------- Amigos ----------

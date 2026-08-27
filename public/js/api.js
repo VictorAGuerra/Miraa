@@ -22,15 +22,7 @@ const Session = {
   },
 };
 
-async function api(path, { method = 'GET', body } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (Session.token) headers.Authorization = `Bearer ${Session.token}`;
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
+async function handleApiResponse(res) {
   if (res.status === 401) {
     Session.clear();
     window.location.href = '/index.html';
@@ -47,4 +39,44 @@ async function api(path, { method = 'GET', body } = {}) {
     throw new Error((data && data.error) || `Erro ${res.status}`);
   }
   return data;
+}
+
+async function api(path, { method = 'GET', body } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (Session.token) headers.Authorization = `Bearer ${Session.token}`;
+  const res = await fetch(`/api${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  return handleApiResponse(res);
+}
+
+// Para upload de arquivos (multipart/form-data) — não define Content-Type
+// manualmente, o navegador precisa gerar o boundary correto sozinho.
+async function apiUpload(path, formData, { method = 'POST' } = {}) {
+  const headers = {};
+  if (Session.token) headers.Authorization = `Bearer ${Session.token}`;
+  const res = await fetch(`/api${path}`, { method, headers, body: formData });
+  return handleApiResponse(res);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+// Apelido tem prioridade sobre o nome de usuário para exibição.
+function displayNameOf(user) {
+  return (user && (user.displayName || user.username)) || '?';
+}
+
+// <img> se tiver avatarUrl, senão um círculo com a inicial do nome.
+function avatarHtml(user, sizeClass = 'avatar-md') {
+  const name = displayNameOf(user);
+  if (user && user.avatarUrl) {
+    return `<img class="avatar ${sizeClass}" src="${escapeHtml(user.avatarUrl)}" alt="" />`;
+  }
+  return `<span class="avatar ${sizeClass}">${escapeHtml(name.trim().charAt(0) || '?')}</span>`;
 }
