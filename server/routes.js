@@ -14,7 +14,7 @@ const registerLimiter = rateLimit({
   limit: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Muitas contas criadas a partir deste endereço em pouco tempo. Tente novamente mais tarde.' },
+  message: { error: 'Muitas contas criadas curto intervalo de tempo. Tente novamente mais tarde.' },
 });
 
 function passwordRequirementErrors(password) {
@@ -27,8 +27,15 @@ function passwordRequirementErrors(password) {
   return missing;
 }
 
-function router() {
+function router(io) {
   const r = express.Router();
+
+  // Empurra um evento leve para todas as abas/dispositivos logados de um
+  // usuário; o cliente reage apenas re-buscando a lista via REST (sem
+  // precisar sincronizar payloads parciais).
+  function notify(userIds, event) {
+    for (const id of userIds) io.to(`user:${id}`).emit(event);
+  }
 
   // ---------- Autenticação ----------
 
@@ -85,6 +92,7 @@ function router() {
     }
     try {
       const result = store.sendFriendRequest(req.userId, uuid.trim());
+      notify([req.userId, uuid.trim()], 'friends:updated');
       res.status(201).json(result);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -93,7 +101,8 @@ function router() {
 
   r.post('/friends/requests/:id/accept', auth.requireAuth, (req, res) => {
     try {
-      store.acceptRequest(req.params.id, req.userId);
+      const request = store.acceptRequest(req.params.id, req.userId);
+      notify([req.userId, request.from], 'friends:updated');
       res.status(204).end();
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -102,7 +111,8 @@ function router() {
 
   r.post('/friends/requests/:id/reject', auth.requireAuth, (req, res) => {
     try {
-      store.rejectRequest(req.params.id, req.userId);
+      const request = store.rejectRequest(req.params.id, req.userId);
+      notify([request.from, request.to], 'friends:updated');
       res.status(204).end();
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -111,6 +121,7 @@ function router() {
 
   r.delete('/friends/:friendId', auth.requireAuth, (req, res) => {
     store.removeFriend(req.userId, req.params.friendId);
+    notify([req.userId, req.params.friendId], 'friends:updated');
     res.status(204).end();
   });
 
@@ -127,6 +138,7 @@ function router() {
       return res.status(400).json({ error: 'A sala precisa de um nome.' });
     }
     const room = store.createRoom(req.userId, name, Array.isArray(memberIds) ? memberIds : []);
+    notify(room.memberIds, 'rooms:updated');
     res.status(201).json({ room: store.roomWithMembers(room) });
   });
 
@@ -142,6 +154,7 @@ function router() {
     const { friendId } = req.body || {};
     try {
       const room = store.inviteToRoom(req.params.id, req.userId, friendId);
+      notify(room.memberIds, 'rooms:updated');
       res.json({ room: store.roomWithMembers(room) });
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -150,7 +163,8 @@ function router() {
 
   r.post('/rooms/:id/leave', auth.requireAuth, (req, res) => {
     try {
-      store.leaveRoom(req.params.id, req.userId);
+      const room = store.leaveRoom(req.params.id, req.userId);
+      notify([req.userId, ...room.memberIds], 'rooms:updated');
       res.status(204).end();
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -159,7 +173,8 @@ function router() {
 
   r.delete('/rooms/:id', auth.requireAuth, (req, res) => {
     try {
-      store.deleteRoom(req.params.id, req.userId);
+      const room = store.deleteRoom(req.params.id, req.userId);
+      notify(room.memberIds, 'rooms:updated');
       res.status(204).end();
     } catch (err) {
       res.status(400).json({ error: err.message });

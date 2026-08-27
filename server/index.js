@@ -16,12 +16,13 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
-app.use('/api', routes());
-app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const server = http.createServer(app);
 const io = new Server(server);
 setupSocket(io);
+
+app.use('/api', routes(io));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 server.listen(PORT, () => {
   console.log(`Miraa rodando em http://localhost:${PORT}`);

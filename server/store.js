@@ -106,6 +106,7 @@ function acceptRequest(requestId, userId) {
   addMutualFriends(req.from, req.to);
   delete state.friendRequests[requestId];
   persist();
+  return req;
 }
 
 function rejectRequest(requestId, userId) {
@@ -115,6 +116,7 @@ function rejectRequest(requestId, userId) {
   }
   delete state.friendRequests[requestId];
   persist();
+  return req;
 }
 
 function removeFriend(userId, friendId) {
@@ -169,6 +171,7 @@ function leaveRoom(roomId, userId) {
   if (room.ownerId === userId) throw new Error('O dono não pode sair; exclua a sala.');
   room.memberIds = room.memberIds.filter((id) => id !== userId);
   persist();
+  return room;
 }
 
 function deleteRoom(roomId, userId) {
@@ -177,6 +180,7 @@ function deleteRoom(roomId, userId) {
   if (room.ownerId !== userId) throw new Error('Apenas o dono pode excluir a sala.');
   delete state.rooms[roomId];
   persist();
+  return room;
 }
 
 function roomWithMembers(room) {

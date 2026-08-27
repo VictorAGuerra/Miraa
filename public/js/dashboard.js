@@ -210,3 +210,15 @@ async function refreshAll() {
 }
 
 refreshAll();
+
+// Atualiza a tela em tempo real (sem F5) quando algo muda: pedido de
+// amizade recebido/aceito, convite pra sala, etc. O servidor só avisa "algo
+// mudou" — a gente reage re-buscando a lista correspondente.
+const socket = io({ auth: { token: Session.token } });
+socket.on('friends:updated', () => {
+  loadFriends();
+  loadRequests();
+});
+socket.on('rooms:updated', () => {
+  loadRooms();
+});

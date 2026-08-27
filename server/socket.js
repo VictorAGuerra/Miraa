@@ -20,6 +20,12 @@ function setupSocket(io) {
   });
 
   io.on('connection', (socket) => {
+    // Canal pessoal do usuário — usado para empurrar notificações (pedido de
+    // amizade, convite de sala, etc.) em tempo real, independente de estar
+    // numa sala. Todas as abas/dispositivos logados do mesmo usuário entram
+    // aqui, então todos recebem a notificação.
+    socket.join(`user:${socket.userId}`);
+
     socket.on('room:join', (payload, ack) => {
       const roomId = payload && payload.roomId;
       if (!store.isRoomMember(roomId, socket.userId)) {
