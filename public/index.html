@@ -56,12 +56,26 @@
           <label for="reg-password-confirm">Confirmar senha</label>
           <input type="password" id="reg-password-confirm" autocomplete="new-password" minlength="8" required />
         </div>
+        <div class="field">
+          <label class="checkbox">
+            <input type="checkbox" id="reg-consent-checkbox" required />
+            <span>Confirmo que tenho 18 anos ou mais e li e aceito os
+              <a href="/terms.html" target="_blank" rel="noopener">Termos de Uso</a> e a
+              <a href="/privacy.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span>
+          </label>
+        </div>
         <div class="form-actions">
           <button type="submit">Criar conta</button>
           <button type="button" class="link-btn" id="show-login">Já tem conta? Entrar</button>
         </div>
         <div class="error-msg" id="register-error"></div>
       </form>
+    </div>
+
+    <div class="legal-footer">
+      <a href="/terms.html" target="_blank" rel="noopener">Termos de Uso</a>
+      ·
+      <a href="/privacy.html" target="_blank" rel="noopener">Política de Privacidade</a>
     </div>
   </div>
 

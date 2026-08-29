@@ -68,9 +68,17 @@ registerForm.addEventListener('submit', async (e) => {
     registerError.textContent = 'As senhas não coincidem.';
     return;
   }
+  const consentGiven = document.getElementById('reg-consent-checkbox').checked;
+  if (!consentGiven) {
+    registerError.textContent = 'Confirme que tem 18 anos ou mais e aceite os Termos de Uso e a Política de Privacidade.';
+    return;
+  }
 
   try {
-    const data = await api('/register', { method: 'POST', body: { username, password } });
+    const data = await api('/register', {
+      method: 'POST',
+      body: { username, password, ageConfirmed: true, termsAccepted: true },
+    });
     Session.save(data.token, data.user);
     window.location.href = '/dashboard.html';
   } catch (err) {

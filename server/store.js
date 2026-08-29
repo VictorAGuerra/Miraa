@@ -32,6 +32,10 @@ function createUser(username, password) {
     usernameLower: username.trim().toLowerCase(),
     passwordHash: bcrypt.hashSync(password, 10),
     createdAt: Date.now(),
+    // Registro do consentimento (confirmação de 18+ e aceite dos Termos de
+    // Uso / Política de Privacidade) exigido no cadastro — o ônus da prova
+    // do consentimento é do controlador (LGPD, art. 8º §2º).
+    consentAt: Date.now(),
     displayName: null,
     hasAvatar: false,
     avatarVersion: 0,

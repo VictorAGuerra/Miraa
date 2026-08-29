@@ -101,6 +101,7 @@ input:focus {
 .center-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
@@ -145,8 +146,29 @@ input:focus {
 .auth-card .brand-name { font-size: 1.7rem; }
 .auth-tagline { text-align: center; color: var(--text-dim); font-size: 0.85rem; margin: 0 0 1.6rem; }
 
+.legal-footer {
+  text-align: center;
+  margin-top: 1.2rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+.legal-footer a { color: var(--text-dim); }
+.legal-footer a:hover { color: var(--accent-2); }
+
 .field { margin-bottom: 1rem; }
 .field label { display: block; margin-bottom: 0.35rem; font-size: 0.85rem; color: var(--text-dim); }
+
+label.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-weight: 400;
+}
+label.checkbox input[type="checkbox"] { margin-top: 0.2rem; flex-shrink: 0; }
+label.checkbox a { color: var(--accent-2); }
 
 .pw-requirements {
   list-style: none;
@@ -483,3 +505,27 @@ button.icon-btn svg { width: 20px; height: 20px; color: white; }
   font-size: 0.82rem;
 }
 .roster-pill .you-tag { color: var(--text-dim); font-size: 0.72rem; }
+
+/* ---------- Páginas legais (Termos / Privacidade) ---------- */
+
+.legal-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 5rem;
+}
+.legal-page .back-link { display: inline-block; margin-bottom: 1.5rem; font-size: 0.85rem; }
+.legal-page h1 { font-size: 1.7rem; margin: 0 0 0.3rem; }
+.legal-page .updated { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 2rem; }
+.legal-page h2 {
+  font-size: 1.1rem;
+  margin: 2.2rem 0 0.7rem;
+  background: linear-gradient(135deg, #ffffff, var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+}
+.legal-page p, .legal-page li { line-height: 1.65; color: var(--text); margin-bottom: 0.7rem; }
+.legal-page ul { padding-left: 1.3rem; margin: 0.5rem 0 1rem; }
+.legal-page a { color: var(--accent-2); }
+.legal-page strong { color: var(--text); }

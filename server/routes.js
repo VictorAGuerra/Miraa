@@ -59,7 +59,12 @@ function router(io) {
   // ---------- Autenticação ----------
 
   r.post('/register', registerLimiter, (req, res) => {
-    const { username, password } = req.body || {};
+    const { username, password, ageConfirmed, termsAccepted } = req.body || {};
+    if (ageConfirmed !== true || termsAccepted !== true) {
+      return res.status(400).json({
+        error: 'É necessário confirmar que você tem 18 anos ou mais e aceitar os Termos de Uso e a Política de Privacidade.',
+      });
+    }
     if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
       return res.status(400).json({ error: 'Usuário deve ter 3-20 caracteres (letras, números, _).' });
     }
