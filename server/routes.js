@@ -46,7 +46,7 @@ function passwordRequirementErrors(password) {
   return missing;
 }
 
-function router(io) {
+function router(io, kickUserFromRoom) {
   const r = express.Router();
 
   // Empurra um evento leve para todas as abas/dispositivos logados de um
@@ -232,6 +232,17 @@ function router(io) {
     try {
       const room = store.inviteToRoom(req.params.id, req.userId, friendId);
       notify(room.memberIds, 'rooms:updated');
+      res.json({ room: store.roomWithMembers(room) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  r.delete('/rooms/:id/members/:memberId', auth.requireAuth, (req, res) => {
+    try {
+      const room = store.removeMember(req.params.id, req.userId, req.params.memberId);
+      notify([req.params.memberId, ...room.memberIds], 'rooms:updated');
+      kickUserFromRoom(io, req.params.id, req.params.memberId);
       res.json({ room: store.roomWithMembers(room) });
     } catch (err) {
       res.status(400).json({ error: err.message });

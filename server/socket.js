@@ -76,4 +76,19 @@ function setupSocket(io) {
   });
 }
 
-module.exports = setupSocket;
+// Remove um usuário de uma sala em que ele esteja ativamente conectado
+// (chamada em andamento), avisando-o e os demais participantes. Usado
+// quando o dono remove alguém da lista de membros pelo painel.
+function kickUserFromRoom(io, roomId, userId) {
+  const channel = roomChannel(roomId);
+  for (const [socketId, info] of Array.from(peers.entries())) {
+    if (info.roomId !== roomId || info.userId !== userId) continue;
+    peers.delete(socketId);
+    io.to(socketId).emit('room:kicked');
+    io.to(channel).emit('room:peer-left', { socketId });
+    const targetSocket = io.sockets.sockets.get(socketId);
+    if (targetSocket) targetSocket.leave(channel);
+  }
+}
+
+module.exports = { setupSocket, kickUserFromRoom };

@@ -4,7 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const routes = require('./routes');
-const setupSocket = require('./socket');
+const { setupSocket, kickUserFromRoom } = require('./socket');
 
 const PORT = process.env.PORT || 3000;
 
@@ -21,7 +21,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 setupSocket(io);
 
-app.use('/api', routes(io));
+app.use('/api', routes(io, kickUserFromRoom));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 server.listen(PORT, () => {

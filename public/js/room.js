@@ -58,6 +58,35 @@ const peerConnections = new Map();
 const remoteStreamMeta = new Map();
 // `${socketId}:${streamId}` -> { tile, video, badge, label }
 const tiles = new Map();
+// `${socketId}:${streamId}` -> HTMLAudioElement — streams só de áudio (ex.:
+// microfone) tocam o som mas não ganham um quadro visual (não há nada pra
+// mostrar).
+const remoteAudioEls = new Map();
+
+const FULLSCREEN_ICON = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+    <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+    <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+    <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+  </svg>`;
+
+function addFullscreenButton(tile) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'tile-fullscreen-btn';
+  btn.title = 'Tela cheia';
+  btn.setAttribute('aria-label', 'Tela cheia');
+  btn.innerHTML = FULLSCREEN_ICON;
+  btn.addEventListener('click', () => {
+    if (document.fullscreenElement === tile) {
+      document.exitFullscreen();
+    } else {
+      tile.requestFullscreen().catch(() => {});
+    }
+  });
+  tile.appendChild(btn);
+}
 
 // ---------- UI: tiles ----------
 
@@ -79,6 +108,7 @@ function ensureRemoteTile(socketId, stream) {
   label.className = 'label';
   label.textContent = identity ? displayNameOf(identity) : 'Participante';
   tile.append(video, badge, label);
+  addFullscreenButton(tile);
   videoGrid.appendChild(tile);
   const record = { tile, video, badge, label };
   tiles.set(key, record);
@@ -99,6 +129,36 @@ function removeTilesForSocket(socketId) {
     if (key.startsWith(`${socketId}:`)) {
       tiles.get(key).tile.remove();
       tiles.delete(key);
+    }
+  }
+}
+
+function ensureRemoteAudio(socketId, stream) {
+  const key = tileKey(socketId, stream.id);
+  if (remoteAudioEls.has(key)) return remoteAudioEls.get(key);
+  const audioEl = document.createElement('audio');
+  audioEl.autoplay = true;
+  audioEl.srcObject = stream;
+  audioEl.style.display = 'none';
+  document.body.appendChild(audioEl);
+  remoteAudioEls.set(key, audioEl);
+  return audioEl;
+}
+
+function removeRemoteAudio(socketId, streamId) {
+  const key = tileKey(socketId, streamId);
+  const el = remoteAudioEls.get(key);
+  if (el) {
+    el.remove();
+    remoteAudioEls.delete(key);
+  }
+}
+
+function removeRemoteAudioForSocket(socketId) {
+  for (const key of Array.from(remoteAudioEls.keys())) {
+    if (key.startsWith(`${socketId}:`)) {
+      remoteAudioEls.get(key).remove();
+      remoteAudioEls.delete(key);
     }
   }
 }
@@ -129,6 +189,7 @@ function showLocalPreview(kind, stream) {
   label.className = 'label';
   label.textContent = `Você (${KIND_LABELS[kind]})`;
   tile.append(video, badge, label);
+  addFullscreenButton(tile);
   videoGrid.prepend(tile);
   localTiles[kind] = tile;
 }
@@ -180,6 +241,16 @@ function createPeerConnection(socketId, remoteUserId) {
 
   pc.ontrack = (event) => {
     const stream = event.streams[0] || new MediaStream([event.track]);
+
+    // Stream só de áudio (ex.: microfone): toca o som, sem quadro visual.
+    if (stream.getVideoTracks().length === 0) {
+      ensureRemoteAudio(socketId, stream);
+      stream.addEventListener('removetrack', () => {
+        if (stream.getTracks().length === 0) removeRemoteAudio(socketId, stream.id);
+      });
+      return;
+    }
+
     const record = ensureRemoteTile(socketId, stream);
     if (record.video.srcObject !== stream) record.video.srcObject = stream;
     applyMetaToTile(socketId, stream.id);
@@ -206,6 +277,7 @@ function closePeerConnection(socketId) {
   entry.pc.close();
   peerConnections.delete(socketId);
   removeTilesForSocket(socketId);
+  removeRemoteAudioForSocket(socketId);
 }
 
 // ---------- Compartilhamento local ----------
@@ -316,6 +388,11 @@ socket.on('room:peer-joined', (p) => {
   setStatus(`${displayNameOf(identityFor(p.userId, p.username))} entrou na sala.`);
 });
 
+socket.on('room:kicked', () => {
+  alert('Você foi removido desta sala.');
+  window.location.href = '/dashboard.html';
+});
+
 socket.on('room:peer-left', ({ socketId }) => {
   const info = peerInfoBySocket.get(socketId);
   closePeerConnection(socketId);
@@ -329,6 +406,7 @@ socket.on('stream:meta', ({ socketId, kind, streamId, active, username }) => {
   if (active === false) {
     remoteStreamMeta.delete(streamId);
     removeTile(socketId, streamId);
+    removeRemoteAudio(socketId, streamId);
     return;
   }
   remoteStreamMeta.set(streamId, { kind, username: username || peerInfoBySocket.get(socketId)?.username });

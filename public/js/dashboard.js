@@ -30,6 +30,29 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   window.location.href = '/index.html';
 });
 
+const CHECK_ICON = `<svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+// Preenche um .friend-picker com botões marcáveis (um por amigo). Usado no
+// "criar sala" e no "gerenciar membros".
+function renderFriendPicker(container, friends, emptyMessage) {
+  container.innerHTML = friends.length
+    ? ''
+    : `<span class="muted" style="font-size:0.85rem;">${emptyMessage}</span>`;
+  for (const f of friends) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'friend-pick';
+    btn.dataset.id = f.id;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.innerHTML = `${avatarHtml(f, 'avatar-sm')} <span>${escapeHtml(displayNameOf(f))}</span> ${CHECK_ICON}`;
+    btn.addEventListener('click', () => {
+      const selected = btn.classList.toggle('selected');
+      btn.setAttribute('aria-pressed', String(selected));
+    });
+    container.appendChild(btn);
+  }
+}
+
 function toast(msg) {
   const el = document.createElement('div');
   el.className = 'toast';
@@ -227,7 +250,8 @@ async function loadRooms() {
       <div class="actions">
         <button data-enter="${room.id}">Entrar</button>
         ${isOwner
-          ? `<button class="danger" data-delete="${room.id}">Excluir</button>`
+          ? `<button class="secondary" data-manage="${room.id}">Membros</button>
+             <button class="danger" data-delete="${room.id}">Excluir</button>`
           : `<button class="secondary" data-leave="${room.id}">Sair</button>`}
       </div>`;
     list.appendChild(item);
@@ -236,6 +260,9 @@ async function loadRooms() {
     btn.addEventListener('click', () => {
       window.location.href = `/room.html?id=${encodeURIComponent(btn.dataset.enter)}`;
     });
+  });
+  list.querySelectorAll('[data-manage]').forEach((btn) => {
+    btn.addEventListener('click', () => openManageMembers(btn.dataset.manage));
   });
   list.querySelectorAll('[data-delete]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -252,6 +279,85 @@ async function loadRooms() {
   });
 }
 
+// ---------- Modal de gerenciar membros ----------
+
+const manageMembersModal = document.getElementById('manage-members-modal');
+let manageRoomId = null;
+
+async function openManageMembers(roomId) {
+  manageRoomId = roomId;
+  document.getElementById('manage-members-error').textContent = '';
+  await renderManageMembers();
+  manageMembersModal.classList.remove('hidden');
+}
+
+async function renderManageMembers() {
+  const errorEl = document.getElementById('manage-members-error');
+  let room;
+  try {
+    ({ room } = await api(`/rooms/${manageRoomId}`));
+  } catch (err) {
+    errorEl.textContent = err.message;
+    return;
+  }
+
+  const currentList = document.getElementById('current-members-list');
+  currentList.innerHTML = '';
+  for (const member of room.members) {
+    const isRoomOwner = member.id === room.ownerId;
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.innerHTML = `
+      ${friendRowInfo(member)}
+      <div class="actions">
+        ${isRoomOwner
+          ? '<span class="muted" style="font-size:0.8rem;">dono</span>'
+          : `<button class="danger" data-kick="${member.id}">Remover</button>`}
+      </div>`;
+    currentList.appendChild(item);
+  }
+  currentList.querySelectorAll('[data-kick]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await api(`/rooms/${manageRoomId}/members/${btn.dataset.kick}`, { method: 'DELETE' });
+        await renderManageMembers();
+        await refreshAll();
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    });
+  });
+
+  const { friends } = await api('/friends');
+  const memberIds = new Set(room.members.map((m) => m.id));
+  const invitable = friends.filter((f) => !memberIds.has(f.id));
+  renderFriendPicker(
+    document.getElementById('manage-friend-picker'),
+    invitable,
+    friends.length ? 'Todos os seus amigos já estão nesta sala.' : 'Adicione amigos para convidá-los.',
+  );
+}
+
+document.getElementById('close-manage-members-btn').addEventListener('click', () => {
+  manageMembersModal.classList.add('hidden');
+});
+
+document.getElementById('invite-selected-btn').addEventListener('click', async () => {
+  const errorEl = document.getElementById('manage-members-error');
+  errorEl.textContent = '';
+  const friendIds = Array.from(document.querySelectorAll('#manage-friend-picker .friend-pick.selected'))
+    .map((el) => el.dataset.id);
+  try {
+    for (const friendId of friendIds) {
+      await api(`/rooms/${manageRoomId}/invite`, { method: 'POST', body: { friendId } });
+    }
+    await renderManageMembers();
+    await refreshAll();
+  } catch (err) {
+    errorEl.textContent = err.message;
+  }
+});
+
 // ---------- Modal de criação de sala ----------
 
 const modal = document.getElementById('create-room-modal');
@@ -260,24 +366,7 @@ document.getElementById('open-create-room').addEventListener('click', async () =
   document.getElementById('room-name-input').value = '';
   document.getElementById('create-room-error').textContent = '';
   const { friends } = await api('/friends');
-  const picker = document.getElementById('room-friend-picker');
-  picker.innerHTML = friends.length
-    ? ''
-    : '<span class="muted" style="font-size:0.85rem;">Adicione amigos para convidá-los.</span>';
-  const CHECK_ICON = `<svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-  for (const f of friends) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'friend-pick';
-    btn.dataset.id = f.id;
-    btn.setAttribute('aria-pressed', 'false');
-    btn.innerHTML = `${avatarHtml(f, 'avatar-sm')} <span>${escapeHtml(displayNameOf(f))}</span> ${CHECK_ICON}`;
-    btn.addEventListener('click', () => {
-      const selected = btn.classList.toggle('selected');
-      btn.setAttribute('aria-pressed', String(selected));
-    });
-    picker.appendChild(btn);
-  }
+  renderFriendPicker(document.getElementById('room-friend-picker'), friends, 'Adicione amigos para convidá-los.');
   modal.classList.remove('hidden');
 });
 

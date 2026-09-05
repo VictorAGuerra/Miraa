@@ -210,6 +210,16 @@ function inviteToRoom(roomId, ownerId, friendId) {
   return room;
 }
 
+function removeMember(roomId, ownerId, memberId) {
+  const room = getRoom(roomId);
+  if (!room) throw new Error('Sala não encontrada.');
+  if (room.ownerId !== ownerId) throw new Error('Apenas o dono pode remover membros.');
+  if (memberId === ownerId) throw new Error('O dono não pode remover a si mesmo; exclua a sala.');
+  room.memberIds = room.memberIds.filter((id) => id !== memberId);
+  persist();
+  return room;
+}
+
 function leaveRoom(roomId, userId) {
   const room = getRoom(roomId);
   if (!room) throw new Error('Sala não encontrada.');
@@ -254,6 +264,7 @@ module.exports = {
   isRoomMember,
   listRoomsForUser,
   inviteToRoom,
+  removeMember,
   leaveRoom,
   deleteRoom,
   roomWithMembers,
