@@ -32,6 +32,37 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 
 const CHECK_ICON = `<svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 
+const LOGIN_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>`;
+const LOGOUT_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>`;
+const USERS_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`;
+const TRASH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+const USER_MINUS_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="23" y1="11" x2="17" y2="11"></line></svg>`;
+
+// Modal de confirmação genérico — devolve uma Promise<boolean>.
+const confirmModal = document.getElementById('confirm-modal');
+function askConfirmation({ title = 'Tem certeza?', message = '', confirmLabel = 'Confirmar' } = {}) {
+  return new Promise((resolve) => {
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-message').textContent = message;
+    const confirmBtn = document.getElementById('confirm-modal-confirm-btn');
+    const cancelBtn = document.getElementById('confirm-modal-cancel-btn');
+    confirmBtn.textContent = confirmLabel;
+
+    function cleanup(result) {
+      confirmModal.classList.add('hidden');
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onConfirm() { cleanup(true); }
+    function onCancel() { cleanup(false); }
+
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    confirmModal.classList.remove('hidden');
+  });
+}
+
 // Preenche um .friend-picker com botões marcáveis (um por amigo). Usado no
 // "criar sala" e no "gerenciar membros".
 function renderFriendPicker(container, friends, emptyMessage) {
@@ -153,12 +184,19 @@ async function loadFriends() {
     item.innerHTML = `
       ${friendRowInfo(f)}
       <div class="actions">
-        <button class="danger" data-remove="${f.id}">Remover</button>
+        <button class="icon-action-btn danger-icon" data-remove="${f.id}" title="Remover amigo" aria-label="Remover amigo">${USER_MINUS_ICON}</button>
       </div>`;
     list.appendChild(item);
   }
   list.querySelectorAll('[data-remove]').forEach((btn) => {
     btn.addEventListener('click', async () => {
+      const name = btn.closest('.list-item')?.querySelector('strong')?.textContent || 'este amigo';
+      const ok = await askConfirmation({
+        title: 'Remover amigo',
+        message: `Tem certeza que deseja remover ${name} da sua lista de amigos?`,
+        confirmLabel: 'Remover',
+      });
+      if (!ok) return;
       await api(`/friends/${btn.dataset.remove}`, { method: 'DELETE' });
       await refreshAll();
     });
@@ -232,27 +270,32 @@ document.getElementById('send-request-btn').addEventListener('click', async () =
 
 async function loadRooms() {
   const { rooms } = await api('/rooms');
-  const list = document.getElementById('rooms-list');
+  const ownRooms = rooms.filter((r) => r.ownerId === me.id);
+  const friendsRooms = rooms.filter((r) => r.ownerId !== me.id);
+  renderRoomList(document.getElementById('own-rooms-list'), ownRooms, true, 'Você ainda não criou nenhuma sala.');
+  renderRoomList(document.getElementById('friends-rooms-list'), friendsRooms, false, 'Nenhum amigo te convidou para uma sala ainda.');
+}
+
+function renderRoomList(list, rooms, isOwnerList, emptyMessage) {
   list.innerHTML = '';
   if (!rooms.length) {
-    list.innerHTML = '<div class="empty-hint">Nenhuma sala ainda. Crie uma watch party!</div>';
+    list.innerHTML = `<div class="empty-hint">${emptyMessage}</div>`;
     return;
   }
   for (const room of rooms) {
-    const isOwner = room.ownerId === me.id;
     const item = document.createElement('div');
     item.className = 'list-item';
     item.innerHTML = `
       <div class="info">
         <strong>${escapeHtml(room.name)}</strong>
-        <span>${room.members.length} membro(s)${isOwner ? ' · você é o dono' : ''}</span>
+        <span>${room.members.length} membro(s)</span>
       </div>
       <div class="actions">
-        <button data-enter="${room.id}">Entrar</button>
-        ${isOwner
-          ? `<button class="secondary" data-manage="${room.id}">Membros</button>
-             <button class="danger" data-delete="${room.id}">Excluir</button>`
-          : `<button class="secondary" data-leave="${room.id}">Sair</button>`}
+        <button class="icon-action-btn primary-icon" data-enter="${room.id}" title="Entrar" aria-label="Entrar">${LOGIN_ICON}</button>
+        ${isOwnerList
+          ? `<button class="icon-action-btn" data-manage="${room.id}" title="Membros" aria-label="Membros">${USERS_ICON}</button>
+             <button class="icon-action-btn danger-icon" data-delete="${room.id}" title="Excluir sala" aria-label="Excluir sala">${TRASH_ICON}</button>`
+          : `<button class="icon-action-btn" data-leave="${room.id}" title="Sair da sala" aria-label="Sair da sala">${LOGOUT_ICON}</button>`}
       </div>`;
     list.appendChild(item);
   }
@@ -266,13 +309,26 @@ async function loadRooms() {
   });
   list.querySelectorAll('[data-delete]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Excluir esta sala para todos os membros?')) return;
+      const name = btn.closest('.list-item')?.querySelector('strong')?.textContent || 'esta sala';
+      const ok = await askConfirmation({
+        title: 'Excluir sala',
+        message: `Tem certeza que deseja excluir "${name}"? Isso remove o acesso de todos os membros.`,
+        confirmLabel: 'Excluir',
+      });
+      if (!ok) return;
       await api(`/rooms/${btn.dataset.delete}`, { method: 'DELETE' });
       await refreshAll();
     });
   });
   list.querySelectorAll('[data-leave]').forEach((btn) => {
     btn.addEventListener('click', async () => {
+      const name = btn.closest('.list-item')?.querySelector('strong')?.textContent || 'esta sala';
+      const ok = await askConfirmation({
+        title: 'Sair da sala',
+        message: `Tem certeza que deseja sair de "${name}"?`,
+        confirmLabel: 'Sair',
+      });
+      if (!ok) return;
       await api(`/rooms/${btn.dataset.leave}/leave`, { method: 'POST' });
       await refreshAll();
     });
@@ -312,12 +368,19 @@ async function renderManageMembers() {
       <div class="actions">
         ${isRoomOwner
           ? '<span class="muted" style="font-size:0.8rem;">dono</span>'
-          : `<button class="danger" data-kick="${member.id}">Remover</button>`}
+          : `<button class="icon-action-btn danger-icon" data-kick="${member.id}" title="Remover da sala" aria-label="Remover da sala">${USER_MINUS_ICON}</button>`}
       </div>`;
     currentList.appendChild(item);
   }
   currentList.querySelectorAll('[data-kick]').forEach((btn) => {
     btn.addEventListener('click', async () => {
+      const name = btn.closest('.list-item')?.querySelector('strong')?.textContent || 'este membro';
+      const ok = await askConfirmation({
+        title: 'Remover membro',
+        message: `Tem certeza que deseja remover ${name} desta sala?`,
+        confirmLabel: 'Remover',
+      });
+      if (!ok) return;
       try {
         await api(`/rooms/${manageRoomId}/members/${btn.dataset.kick}`, { method: 'DELETE' });
         await renderManageMembers();
