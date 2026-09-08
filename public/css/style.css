@@ -170,6 +170,21 @@ label.checkbox {
 label.checkbox input[type="checkbox"] { margin-top: 0.2rem; flex-shrink: 0; }
 label.checkbox a { color: var(--accent-2); }
 
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+.notice .icon { flex-shrink: 0; font-size: 1rem; }
+
 .pw-requirements {
   list-style: none;
   margin: 0.55rem 0 0;
