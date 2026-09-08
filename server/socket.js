@@ -53,7 +53,14 @@ function setupSocket(io) {
     });
 
     socket.on('signal', ({ to, data } = {}) => {
-      if (!to || !peers.has(socket.id)) return;
+      if (!to) return;
+      const sender = peers.get(socket.id);
+      const target = peers.get(to);
+      // Os dois lados precisam estar na MESMA sala — sem isso, qualquer
+      // pessoa numa sala qualquer poderia mandar sinalização WebRTC
+      // arbitrária pra outro socketId de uma sala completamente diferente,
+      // caso descubra/adivinhe o id de conexão de alguém.
+      if (!sender || !target || sender.roomId !== target.roomId) return;
       io.to(to).emit('signal', { from: socket.id, data });
     });
 

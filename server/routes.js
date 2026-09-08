@@ -36,6 +36,16 @@ const registerLimiter = rateLimit({
   message: { error: 'Muitas contas criadas em curto intervalo de tempo. Tente novamente mais tarde.' },
 });
 
+// Freia tentativas de força bruta de senha a partir do mesmo IP. Mais
+// generoso que o de cadastro — gente erra a senha por engano com frequência.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  limit: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login. Tente novamente em alguns minutos.' },
+});
+
 function passwordRequirementErrors(password) {
   if (typeof password !== 'string') return ['a senha é obrigatória'];
   const missing = [];
@@ -80,10 +90,10 @@ function router(io, kickUserFromRoom) {
     res.status(201).json({ token, user: store.publicUser(user) });
   });
 
-  r.post('/login', (req, res) => {
+  r.post('/login', loginLimiter, (req, res) => {
     const { username, password } = req.body || {};
-    const user = typeof username === 'string' ? store.findUserByUsername(username) : null;
-    if (!user || !store.verifyPassword(user, password || '')) {
+    const user = store.verifyLogin(username, password);
+    if (!user) {
       return res.status(401).json({ error: 'Usuário ou senha inválidos.' });
     }
     const token = auth.createToken(user.id);

@@ -51,6 +51,20 @@ function verifyPassword(user, password) {
   return bcrypt.compareSync(password, user.passwordHash);
 }
 
+// Hash "morto", só pra igualar o tempo de resposta do login quando o
+// usuário não existe. Sem isso, dá pra descobrir quais nomes de usuário têm
+// conta medindo a demora do /login: um usuário real dispara um bcrypt.compare
+// (proposicionalmente lento), um inexistente retornava na hora — uma
+// diferença de tempo mensurável e explorável para enumerar contas.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('senha-usada-so-para-igualar-o-tempo-de-resposta', 10);
+
+function verifyLogin(username, password) {
+  const user = typeof username === 'string' ? findUserByUsername(username) : null;
+  const hash = user ? user.passwordHash : DUMMY_PASSWORD_HASH;
+  const ok = bcrypt.compareSync(password || '', hash);
+  return user && ok ? user : null;
+}
+
 function updateDisplayName(userId, displayName) {
   const user = findUserById(userId);
   if (!user) throw new Error('Usuário não encontrado.');
@@ -248,6 +262,7 @@ module.exports = {
   findUserById,
   createUser,
   verifyPassword,
+  verifyLogin,
   updateDisplayName,
   setAvatar,
   clearAvatar,
